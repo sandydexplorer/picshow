@@ -1,13 +1,8 @@
 import React, { memo } from 'react';
-import { View, Image, TouchableOpacity, StyleSheet, Dimensions, Text } from 'react-native';
+import { View, Image, TouchableOpacity, StyleSheet, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../theme';
 import { Photo } from '../hooks/usePhotos';
-
-const { width } = Dimensions.get('window');
-const COLS = 3;
-const GAP = 2;
-const THUMB_SIZE = (width - GAP * (COLS - 1)) / COLS;
 
 function formatDuration(sec?: number) {
   if (!sec) return '';
@@ -23,21 +18,24 @@ interface Props {
   onPress: () => void;
   onLongPress: () => void;
   index: number;
+  thumbSize: number;
+  cols: number;
+  gap?: number;
 }
 
 const PhotoThumbnail: React.FC<Props> = memo(({
-  photo, isSelected, isSelecting, onPress, onLongPress, index
+  photo, isSelected, isSelecting, onPress, onLongPress, index, thumbSize, cols, gap = 2
 }) => {
-  const col = index % COLS;
-  const marginRight = col < COLS - 1 ? GAP : 0;
-  const marginBottom = GAP;
+  const col = index % cols;
+  const marginRight = col < cols - 1 ? gap : 0;
+  const marginBottom = gap;
 
   return (
     <TouchableOpacity
       activeOpacity={0.85}
       onPress={onPress}
       onLongPress={onLongPress}
-      style={[styles.container, { marginRight, marginBottom }]}
+      style={[styles.container, { width: thumbSize, height: thumbSize, marginRight, marginBottom }]}
     >
       <Image source={{ uri: photo.uri }} style={styles.image} resizeMode="cover" />
 
@@ -71,8 +69,6 @@ const PhotoThumbnail: React.FC<Props> = memo(({
 
 const styles = StyleSheet.create({
   container: {
-    width: THUMB_SIZE,
-    height: THUMB_SIZE,
     backgroundColor: Colors.surfaceElevated,
     overflow: 'hidden',
   },
@@ -133,5 +129,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export { THUMB_SIZE, COLS, GAP };
 export default PhotoThumbnail;

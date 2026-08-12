@@ -16,7 +16,7 @@ import PinPad from '../components/PinPad';
 import ZoomableImage from '../components/ZoomableImage';
 import PagerView from 'react-native-pager-view';
 
-const { width, height } = Dimensions.get('window');
+
 
 // ─────────────────────────────────────────────
 // Screen Pinning Guide Modal
@@ -393,7 +393,7 @@ const styles = StyleSheet.create({
   loadingText: { color: Colors.textSecondary, fontSize: Typography.fontSizeMD },
   pager: { flex: 1 },
   page: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  photo: { width, height },
+  photo: { width: '100%', height: '100%' },
   topBar: {
     position: 'absolute', top: 0, left: 0, right: 0,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',

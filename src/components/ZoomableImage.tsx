@@ -1,9 +1,8 @@
 import React, { useRef, useCallback } from 'react';
 import {
-  View, Animated, PanResponder, StyleSheet, Dimensions,
+  View, Animated, PanResponder, StyleSheet, useWindowDimensions,
 } from 'react-native';
 
-const { width, height } = Dimensions.get('window');
 const MIN_SCALE = 1;
 const MAX_SCALE = 5;
 
@@ -23,6 +22,7 @@ function getTouchDist(touches: { pageX: number; pageY: number }[]) {
 }
 
 const ZoomableImage: React.FC<Props> = ({ uri, onZoomChange }) => {
+  const { width, height } = useWindowDimensions();
   // Animated values
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const translateXAnim = useRef(new Animated.Value(0)).current;
@@ -153,7 +153,7 @@ const ZoomableImage: React.FC<Props> = ({ uri, onZoomChange }) => {
 
   return (
     <View
-      style={styles.container}
+      style={[styles.container, { width, height }]}
       onTouchEnd={handleDoubleTap}
       {...panResponder.panHandlers}
     >
@@ -161,6 +161,7 @@ const ZoomableImage: React.FC<Props> = ({ uri, onZoomChange }) => {
         source={{ uri }}
         style={[
           styles.image,
+          { width, height },
           {
             transform: [
               { translateX: translateXAnim },
@@ -177,16 +178,11 @@ const ZoomableImage: React.FC<Props> = ({ uri, onZoomChange }) => {
 
 const styles = StyleSheet.create({
   container: {
-    width,
-    height,
     overflow: 'hidden',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  image: {
-    width,
-    height,
-  },
+  image: {},
 });
 
 export default ZoomableImage;

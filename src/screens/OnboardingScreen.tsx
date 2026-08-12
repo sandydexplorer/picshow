@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, Dimensions,
+  View, Text, StyleSheet, TouchableOpacity, useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,10 +8,9 @@ import { Colors, Typography, Spacing, Radius } from '../theme';
 import { useAuth } from '../context/AuthContext';
 import PinPad from '../components/PinPad';
 
-const { width } = Dimensions.get('window');
-
 const OnboardingScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
   const { setUpPin } = useAuth();
   const [showPinSetup, setShowPinSetup] = useState(false);
 

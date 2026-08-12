@@ -3,12 +3,12 @@
     "name": "PicShow",
     "slug": "picshow",
     "version": "1.0.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "backgroundColor": "#0A0A0F",
     "ios": {
-      "supportsTablet": false,
+      "supportsTablet": true,
       "bundleIdentifier": "com.picshow.app",
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "PicShow needs access to your photos to display and manage them in Safe Show mode.",

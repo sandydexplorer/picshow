@@ -10,7 +10,7 @@ import { Colors, Typography, Spacing } from '../theme';
 import { Photo } from '../hooks/usePhotos';
 import ZoomableImage from '../components/ZoomableImage';
 
-const { width, height } = Dimensions.get('window');
+
 
 interface RouteParams {
   photos: Photo[];

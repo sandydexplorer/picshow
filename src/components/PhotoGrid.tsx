@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react';
-import { FlatList, View, StyleSheet, ActivityIndicator, Text } from 'react-native';
-import PhotoThumbnail, { THUMB_SIZE, GAP } from './PhotoThumbnail';
+import { FlatList, View, StyleSheet, ActivityIndicator, Text, useWindowDimensions } from 'react-native';
+import PhotoThumbnail from './PhotoThumbnail';
 import { Photo } from '../hooks/usePhotos';
 import { Colors, Typography } from '../theme';
 
@@ -15,24 +15,32 @@ interface Props {
   onLoadMore: () => void;
 }
 
-const COLS = 3;
-
 const PhotoGrid: React.FC<Props> = ({
   photos, loading, hasMore,
   selectedPhotoIds, isSelecting,
   onPhotoPress, onPhotoLongPress, onLoadMore,
 }) => {
+  const { width } = useWindowDimensions();
+
+  // Dynamic columns: 3 for phones (< 600), 4-5 for small tablets (600-900), 6+ for large tablets/landscape
+  const cols = width >= 900 ? 6 : width >= 600 ? 4 : 3;
+  const gap = 2;
+  const thumbSize = (width - gap * (cols - 1)) / cols;
+
   const renderItem = useCallback(({ item, index }: { item: Photo; index: number }) => (
     <PhotoThumbnail
       key={item.id}
       photo={item}
       index={index}
+      thumbSize={thumbSize}
+      cols={cols}
+      gap={gap}
       isSelected={selectedPhotoIds.has(item.id)}
       isSelecting={isSelecting}
       onPress={() => onPhotoPress(item, index)}
       onLongPress={() => onPhotoLongPress(item)}
     />
-  ), [selectedPhotoIds, isSelecting, onPhotoPress, onPhotoLongPress]);
+  ), [selectedPhotoIds, isSelecting, onPhotoPress, onPhotoLongPress, thumbSize, cols]);
 
   const keyExtractor = useCallback((item: Photo) => item.id, []);
 
@@ -56,25 +64,21 @@ const PhotoGrid: React.FC<Props> = ({
 
   return (
     <FlatList
+      key={`grid-${cols}`} // Remount on orientation/column changes
       data={photos}
       renderItem={renderItem}
       keyExtractor={keyExtractor}
-      numColumns={COLS}
+      numColumns={cols}
       contentContainerStyle={styles.container}
       columnWrapperStyle={styles.row}
       onEndReached={() => hasMore && onLoadMore()}
-      onEndReachedThreshold={0.5}
+      onEndReachedThreshold={0.6}
       ListFooterComponent={renderFooter}
       ListEmptyComponent={renderEmpty}
       removeClippedSubviews
       initialNumToRender={30}
       maxToRenderPerBatch={30}
       windowSize={10}
-      getItemLayout={(_, index) => ({
-        length: THUMB_SIZE + GAP,
-        offset: (THUMB_SIZE + GAP) * Math.floor(index / COLS),
-        index,
-      })}
     />
   );
 };
@@ -85,7 +89,7 @@ const styles = StyleSheet.create({
     paddingBottom: 120,
   },
   row: {
-    gap: GAP,
+    gap: 2,
   },
   loader: {
     paddingVertical: 24,

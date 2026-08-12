@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  Image, Alert, Dimensions, ScrollView, RefreshControl,
+  Image, Alert, useWindowDimensions, ScrollView, RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -10,15 +10,17 @@ import { Colors, Typography, Spacing, Radius } from '../theme';
 import { useSafeShow, SafeAlbum } from '../context/SafeShowContext';
 import { usePhotos, DeviceAlbum } from '../hooks/usePhotos';
 
-const { width } = Dimensions.get('window');
-const CARD_WIDTH = (width - Spacing.md * 3) / 2;
-
 type TabType = 'device' | 'safe';
 
 const AlbumsScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
   const [activeTab, setActiveTab] = useState<TabType>('device');
+
+  // Dynamic card layout for phones vs tablets
+  const numColumns = width >= 900 ? 5 : width >= 600 ? 3 : 2;
+  const cardWidth = (width - Spacing.md * (numColumns + 1)) / numColumns;
 
   const { albums: safeAlbums, loadAlbums: loadSafeAlbums, deleteAlbum, activateSafeShow } = useSafeShow();
   const { albums: deviceAlbums, loadAlbums: loadDeviceAlbums, selectAlbum, photos, getPhotosByIds } = usePhotos();
@@ -60,7 +62,7 @@ const AlbumsScreen: React.FC = () => {
 
   const renderDeviceFolder = ({ item }: { item: DeviceAlbum }) => (
     <TouchableOpacity
-      style={styles.card}
+      style={[styles.card, { width: cardWidth, height: cardWidth * 1.1 }]}
       onPress={() => handleDeviceFolderPress(item)}
       activeOpacity={0.85}
     >
@@ -80,7 +82,7 @@ const AlbumsScreen: React.FC = () => {
 
   const renderSafeAlbum = ({ item }: { item: SafeAlbum }) => (
     <TouchableOpacity
-      style={styles.card}
+      style={[styles.card, { width: cardWidth, height: cardWidth * 1.1 }]}
       onPress={() => handleSafeAlbumPress(item)}
       activeOpacity={0.85}
     >
@@ -155,10 +157,11 @@ const AlbumsScreen: React.FC = () => {
           </ScrollView>
         ) : (
           <FlatList
+            key={`dev-folders-${numColumns}`}
             data={deviceAlbums}
             renderItem={renderDeviceFolder}
             keyExtractor={item => item.id}
-            numColumns={2}
+            numColumns={numColumns}
             columnWrapperStyle={styles.row}
             contentContainerStyle={styles.list}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={initData} tintColor={Colors.primary} />}
@@ -178,10 +181,11 @@ const AlbumsScreen: React.FC = () => {
           </ScrollView>
         ) : (
           <FlatList
+            key={`safe-albums-${numColumns}`}
             data={safeAlbums}
             renderItem={renderSafeAlbum}
             keyExtractor={item => item.id}
-            numColumns={2}
+            numColumns={numColumns}
             columnWrapperStyle={styles.row}
             contentContainerStyle={styles.list}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={initData} tintColor={Colors.primary} />}
@@ -258,8 +262,6 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
   },
   card: {
-    width: CARD_WIDTH,
-    height: CARD_WIDTH * 1.1,
     borderRadius: Radius.lg,
     overflow: 'hidden',
     backgroundColor: Colors.surfaceElevated,
