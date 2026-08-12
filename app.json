@@ -1,25 +1,56 @@
 {
   "expo": {
     "name": "PicShow",
-    "slug": "PicShow",
+    "slug": "picshow",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0A0A0F",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": false,
+      "bundleIdentifier": "com.picshow.app",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "PicShow needs access to your photos to display and manage them in Safe Show mode.",
+        "NSPhotoLibraryAddUsageDescription": "PicShow saves photos to your library."
+      }
     },
     "android": {
+      "package": "com.picshow.app",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "backgroundColor": "#0A0A0F",
+        "foregroundImage": "./assets/adaptive-icon.png"
       },
+      "permissions": [
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
+        "android.permission.ACCESS_MEDIA_LOCATION",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_MEDIA_AUDIO"
+      ],
       "predictiveBackGestureEnabled": false
     },
+    "plugins": [
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "PicShow needs access to your photos for Safe Show mode.",
+          "savePhotosPermission": "Allow PicShow to save photos.",
+          "isAccessMediaLocationEnabled": true
+        }
+      ],
+      "expo-secure-store"
+    ],
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "f58dfc43-6cda-44e4-b96d-8f176763f636"
+      }
+    },
+    "owner": "sandydexplorer"
   }
 }

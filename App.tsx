@@ -1,20 +1,30 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import React, { useEffect } from 'react';
+import { View, StyleSheet } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { AuthProvider, useAuth } from './src/context/AuthContext';
+import { SafeShowProvider } from './src/context/SafeShowContext';
+import AppNavigator from './src/navigation/AppNavigator';
+
+function RootApp() {
+  const { checkOnboarded } = useAuth();
+  useEffect(() => { checkOnboarded(); }, []);
+  return <AppNavigator />;
+}
 
 export default function App() {
   return (
-    <View style={styles.container}>
-      <Text>Open up App.tsx to start working on your app!</Text>
-      <StatusBar style="auto" />
+    <View style={styles.root}>
+      <SafeAreaProvider>
+        <AuthProvider>
+          <SafeShowProvider>
+            <RootApp />
+          </SafeShowProvider>
+        </AuthProvider>
+      </SafeAreaProvider>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  root: { flex: 1 },
 });
