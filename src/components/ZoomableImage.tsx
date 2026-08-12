@@ -23,6 +23,7 @@ function getTouchDist(touches: { pageX: number; pageY: number }[]) {
 
 const ZoomableImage: React.FC<Props> = ({ uri, onZoomChange }) => {
   const { width, height } = useWindowDimensions();
+
   // Animated values
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const translateXAnim = useRef(new Animated.Value(0)).current;
@@ -42,6 +43,7 @@ const ZoomableImage: React.FC<Props> = ({ uri, onZoomChange }) => {
 
   // Double tap timing
   const lastTapTime = useRef(0);
+  const touchStartTime = useRef(0);
 
   const resetZoom = useCallback(() => {
     Animated.parallel([
@@ -57,14 +59,15 @@ const ZoomableImage: React.FC<Props> = ({ uri, onZoomChange }) => {
 
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => false,
+      onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: (evt, gs) => {
         const touchCount = evt.nativeEvent.touches.length;
-        // Claim gesture for 2 fingers (pinch) OR 1 finger when zoomed in > 1.05x
         return touchCount === 2 || (touchCount === 1 && scale.current > 1.05);
       },
       onPanResponderGrant: (evt) => {
         const touches = evt.nativeEvent.touches;
+        touchStartTime.current = Date.now();
+
         if (touches.length === 2) {
           isPinching.current = true;
           startDist.current = getTouchDist(touches as any);
@@ -101,13 +104,42 @@ const ZoomableImage: React.FC<Props> = ({ uri, onZoomChange }) => {
           translateYAnim.setValue(newY);
         }
       },
-      onPanResponderRelease: (evt) => {
+      onPanResponderRelease: (evt, gs) => {
+        const duration = Date.now() - touchStartTime.current;
+        const moveDist = Math.sqrt(gs.dx * gs.dx + gs.dy * gs.dy);
+
+        // Check double tap only if single touch release with minimal movement
+        if (!isPinching.current && duration < 250 && moveDist < 10) {
+          const now = Date.now();
+          if (now - lastTapTime.current < 300) {
+            lastTapTime.current = 0;
+            if (scale.current > 1.05) {
+              resetZoom();
+            } else {
+              const targetScale = 2.5;
+              Animated.parallel([
+                Animated.spring(scaleAnim, { toValue: targetScale, useNativeDriver: true }),
+                Animated.spring(translateXAnim, { toValue: 0, useNativeDriver: true }),
+                Animated.spring(translateYAnim, { toValue: 0, useNativeDriver: true }),
+              ]).start();
+              scale.current = targetScale;
+              transX.current = 0;
+              transY.current = 0;
+              onZoomChange?.(true);
+            }
+            isPinching.current = false;
+            return;
+          } else {
+            lastTapTime.current = now;
+          }
+        }
+
         isPinching.current = false;
-        // If user pinched below 1.05, snap back to 1.0
+
+        // Keep zoomed scale, clamp pan position within bounds
         if (scale.current < 1.05) {
           resetZoom();
         } else {
-          // Keep zoomed scale, clamp pan position within bounds
           const maxX = (width * (scale.current - 1)) / 2;
           const maxY = (height * (scale.current - 1)) / 2;
           const boundedX = clamp(transX.current, -maxX, maxX);
@@ -128,33 +160,9 @@ const ZoomableImage: React.FC<Props> = ({ uri, onZoomChange }) => {
     })
   ).current;
 
-  const handleDoubleTap = useCallback((evt: any) => {
-    const now = Date.now();
-    if (now - lastTapTime.current < 300) {
-      lastTapTime.current = 0;
-      if (scale.current > 1.05) {
-        resetZoom();
-      } else {
-        const targetScale = 2.5;
-        Animated.parallel([
-          Animated.spring(scaleAnim, { toValue: targetScale, useNativeDriver: true }),
-          Animated.spring(translateXAnim, { toValue: 0, useNativeDriver: true }),
-          Animated.spring(translateYAnim, { toValue: 0, useNativeDriver: true }),
-        ]).start();
-        scale.current = targetScale;
-        transX.current = 0;
-        transY.current = 0;
-        onZoomChange?.(true);
-      }
-    } else {
-      lastTapTime.current = now;
-    }
-  }, [resetZoom, scaleAnim, translateXAnim, translateYAnim, onZoomChange]);
-
   return (
     <View
       style={[styles.container, { width, height }]}
-      onTouchEnd={handleDoubleTap}
       {...panResponder.panHandlers}
     >
       <Animated.Image

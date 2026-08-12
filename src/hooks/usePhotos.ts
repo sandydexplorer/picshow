@@ -88,7 +88,8 @@ export function usePhotos() {
       const options: any = {
         first: PAGE_SIZE,
         mediaType: [MediaType.photo, MediaType.video],
-        sortBy: [[SortBy.creationTime, false]], // Newest first
+        // Sort by modificationTime descending so WhatsApp & downloaded photos with missing EXIF creationTime sort newest-first
+        sortBy: [[SortBy.modificationTime, false]],
       };
       if (cursor) options.after = cursor;
       if (albumId) options.album = albumId;

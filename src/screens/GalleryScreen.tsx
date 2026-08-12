@@ -4,7 +4,7 @@ import {
   Dimensions, Modal, TextInput, ScrollView, Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, Typography, Spacing, Radius } from '../theme';
 import { useSafeShow } from '../context/SafeShowContext';
@@ -16,6 +16,7 @@ const { width } = Dimensions.get('window');
 
 const GalleryScreen: React.FC = () => {
   const navigation = useNavigation<any>();
+  const route = useRoute<any>();
   const insets = useSafeAreaInsets();
   const {
     photos, loading, hasMore, albums,
@@ -37,18 +38,24 @@ const GalleryScreen: React.FC = () => {
     (async () => {
       const granted = await requestPermission();
       if (granted) {
-        loadPhotos(true, null);
         loadAlbums();
       }
     })();
   }, []);
 
-  // Reload photos when album selection changes
+  // Sync selected album from navigation parameters (e.g. when coming from AlbumsScreen)
+  useEffect(() => {
+    if (route.params?.albumId !== undefined) {
+      selectAlbum(route.params.albumId);
+    }
+  }, [route.params?.albumId, selectAlbum]);
+
+  // Reload photos when album selection or permission changes
   useEffect(() => {
     if (hasPermission) {
       loadPhotos(true, selectedAlbumId);
     }
-  }, [selectedAlbumId]);
+  }, [selectedAlbumId, hasPermission]);
 
   const handlePhotoPress = useCallback((photo: Photo, index: number) => {
     if (isSelecting) {

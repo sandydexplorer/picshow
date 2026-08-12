@@ -11,7 +11,7 @@ import PinPad from '../components/PinPad';
 
 const SettingsScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
-  const { verifyUserPin, setUpPin } = useAuth();
+  const { verifyUserPin, setUpPin, userPinLength } = useAuth();
 
   const [pinModalMode, setPinModalMode] = useState<'verify_old' | 'set_new' | null>(null);
   const [screenshotBlock, setScreenshotBlock] = useState(true);
@@ -160,6 +160,7 @@ const SettingsScreen: React.FC = () => {
         <PinPad
           visible
           mode="verify"
+          pinLength={userPinLength}
           title="Enter Current PIN"
           subtitle="Verify your identity before changing PIN"
           onSuccess={handlePinSuccess}

@@ -14,6 +14,7 @@ import { useAuth } from '../context/AuthContext';
 import { usePhotos, Photo } from '../hooks/usePhotos';
 import PinPad from '../components/PinPad';
 import ZoomableImage from '../components/ZoomableImage';
+import VideoPlayerItem from '../components/VideoPlayerItem';
 import PagerView from 'react-native-pager-view';
 
 
@@ -129,7 +130,7 @@ const guideStyles = StyleSheet.create({
 // ─────────────────────────────────────────────
 const BackgroundLockScreen: React.FC<{ onUnlock: () => void }> = ({ onUnlock }) => {
   const [pinVisible, setPinVisible] = useState(false);
-  const { verifyUserPin } = useAuth();
+  const { verifyUserPin, userPinLength } = useAuth();
 
   const handlePinSuccess = useCallback(async (pin: string) => {
     const ok = await verifyUserPin(pin);
@@ -159,6 +160,7 @@ const BackgroundLockScreen: React.FC<{ onUnlock: () => void }> = ({ onUnlock }) 
       <PinPad
         visible={pinVisible}
         mode="verify"
+        pinLength={userPinLength}
         title="Resume Safe Show"
         subtitle="Enter your PIN to continue"
         onSuccess={handlePinSuccess}
@@ -191,7 +193,7 @@ const lockStyles = StyleSheet.create({
 const SafeShowScreen: React.FC = () => {
   const navigation = useNavigation();
   const { safeShowPhotoIds, safeShowPhotos, deactivateSafeShow } = useSafeShow();
-  const { verifyUserPin } = useAuth();
+  const { verifyUserPin, userPinLength } = useAuth();
   const { getPhotosByIds } = usePhotos();
 
   const [photos, setPhotos] = useState<Photo[]>([]);
@@ -316,7 +318,7 @@ const SafeShowScreen: React.FC = () => {
           setIsZoomed(false);
         }}
       >
-        {photos.map((photo) => (
+        {photos.map((photo, i) => (
           <View
             key={photo.id}
             style={styles.page}
@@ -326,13 +328,21 @@ const SafeShowScreen: React.FC = () => {
               style={StyleSheet.absoluteFill}
               onPress={() => { if (!isZoomed) setShowControls(v => !v); }}
             />
-            <ZoomableImage
-              uri={photo.uri}
-              onZoomChange={zoomed => {
-                setIsZoomed(zoomed);
-                if (zoomed) setShowControls(false);
-              }}
-            />
+            {photo.mediaType === 'video' ? (
+              <VideoPlayerItem
+                uri={photo.uri}
+                isActive={i === currentIndex}
+                onToggleUI={() => setShowControls(v => !v)}
+              />
+            ) : (
+              <ZoomableImage
+                uri={photo.uri}
+                onZoomChange={zoomed => {
+                  setIsZoomed(zoomed);
+                  if (zoomed) setShowControls(false);
+                }}
+              />
+            )}
           </View>
         ))}
       </PagerView>
@@ -340,10 +350,6 @@ const SafeShowScreen: React.FC = () => {
       {/* Top bar */}
       {showControls && (
         <View style={styles.topBar}>
-          <View style={styles.safeShowBadge}>
-            <Ionicons name="shield-checkmark" size={14} color={Colors.safeGreen} />
-            <Text style={styles.safeShowLabel}>SAFE SHOW</Text>
-          </View>
           <Text style={styles.counter}>{currentIndex + 1} / {photos.length}</Text>
           <TouchableOpacity onPress={() => setPinVisible(true)} style={styles.exitBtn}>
             <Ionicons name="lock-closed" size={16} color={Colors.textSecondary} />
@@ -376,6 +382,7 @@ const SafeShowScreen: React.FC = () => {
       <PinPad
         visible={pinVisible}
         mode="verify"
+        pinLength={userPinLength}
         title="Enter PIN to Exit"
         subtitle="Safe Show mode is active"
         onSuccess={handleExitPinSuccess}

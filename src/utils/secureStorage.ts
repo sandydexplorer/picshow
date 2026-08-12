@@ -3,6 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 const KEYS = {
   PIN_HASH: 'picshow_pin_hash',
   PIN_TYPE: 'picshow_pin_type', // 'pin' | 'password'
+  PIN_LENGTH: 'picshow_pin_length',
   ALBUMS: 'picshow_albums',
   SETTINGS: 'picshow_settings',
   ONBOARDED: 'picshow_onboarded',

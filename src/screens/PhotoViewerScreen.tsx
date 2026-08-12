@@ -9,6 +9,7 @@ import PagerView from 'react-native-pager-view';
 import { Colors, Typography, Spacing } from '../theme';
 import { Photo } from '../hooks/usePhotos';
 import ZoomableImage from '../components/ZoomableImage';
+import VideoPlayerItem from '../components/VideoPlayerItem';
 
 
 
@@ -66,13 +67,21 @@ const PhotoViewerScreen: React.FC = () => {
           setIsZoomed(false);
         }}
       >
-        {photos.map((photo) => (
+        {photos.map((photo, i) => (
           <View key={photo.id} style={styles.page}>
             <TouchableOpacity activeOpacity={1} onPress={toggleUI} style={StyleSheet.absoluteFill} />
-            <ZoomableImage
-              uri={photo.uri}
-              onZoomChange={setIsZoomed}
-            />
+            {photo.mediaType === 'video' ? (
+              <VideoPlayerItem
+                uri={photo.uri}
+                isActive={i === currentIndex}
+                onToggleUI={toggleUI}
+              />
+            ) : (
+              <ZoomableImage
+                uri={photo.uri}
+                onZoomChange={setIsZoomed}
+              />
+            )}
           </View>
         ))}
       </PagerView>
