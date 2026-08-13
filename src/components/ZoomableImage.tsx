@@ -43,7 +43,6 @@ const ZoomableImage: React.FC<Props> = ({ uri, onZoomChange }) => {
 
   // Double tap timing
   const lastTapTime = useRef(0);
-  const touchStartTime = useRef(0);
 
   const resetZoom = useCallback(() => {
     Animated.parallel([
@@ -59,15 +58,17 @@ const ZoomableImage: React.FC<Props> = ({ uri, onZoomChange }) => {
 
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
+      // Do NOT claim touches on initial touch down at 1x so PagerView gets swipes
+      onStartShouldSetPanResponder: () => false,
       onMoveShouldSetPanResponder: (evt, gs) => {
         const touchCount = evt.nativeEvent.touches.length;
-        return touchCount === 2 || (touchCount === 1 && scale.current > 1.05);
+        // Claim gesture if 2 fingers (pinch) OR if already zoomed in (> 1.05x)
+        if (touchCount === 2) return true;
+        if (scale.current > 1.05) return true;
+        return false;
       },
       onPanResponderGrant: (evt) => {
         const touches = evt.nativeEvent.touches;
-        touchStartTime.current = Date.now();
-
         if (touches.length === 2) {
           isPinching.current = true;
           startDist.current = getTouchDist(touches as any);
@@ -104,42 +105,13 @@ const ZoomableImage: React.FC<Props> = ({ uri, onZoomChange }) => {
           translateYAnim.setValue(newY);
         }
       },
-      onPanResponderRelease: (evt, gs) => {
-        const duration = Date.now() - touchStartTime.current;
-        const moveDist = Math.sqrt(gs.dx * gs.dx + gs.dy * gs.dy);
-
-        // Check double tap only if single touch release with minimal movement
-        if (!isPinching.current && duration < 250 && moveDist < 10) {
-          const now = Date.now();
-          if (now - lastTapTime.current < 300) {
-            lastTapTime.current = 0;
-            if (scale.current > 1.05) {
-              resetZoom();
-            } else {
-              const targetScale = 2.5;
-              Animated.parallel([
-                Animated.spring(scaleAnim, { toValue: targetScale, useNativeDriver: true }),
-                Animated.spring(translateXAnim, { toValue: 0, useNativeDriver: true }),
-                Animated.spring(translateYAnim, { toValue: 0, useNativeDriver: true }),
-              ]).start();
-              scale.current = targetScale;
-              transX.current = 0;
-              transY.current = 0;
-              onZoomChange?.(true);
-            }
-            isPinching.current = false;
-            return;
-          } else {
-            lastTapTime.current = now;
-          }
-        }
-
+      onPanResponderRelease: () => {
         isPinching.current = false;
 
-        // Keep zoomed scale, clamp pan position within bounds
         if (scale.current < 1.05) {
           resetZoom();
         } else {
+          // Clamp pan position within zoomed bounds
           const maxX = (width * (scale.current - 1)) / 2;
           const maxY = (height * (scale.current - 1)) / 2;
           const boundedX = clamp(transX.current, -maxX, maxX);
@@ -160,9 +132,34 @@ const ZoomableImage: React.FC<Props> = ({ uri, onZoomChange }) => {
     })
   ).current;
 
+  const handleTouchEnd = useCallback((evt: any) => {
+    // Handle double-tap to zoom/reset cleanly without blocking PagerView swipes
+    const now = Date.now();
+    if (now - lastTapTime.current < 300) {
+      lastTapTime.current = 0;
+      if (scale.current > 1.05) {
+        resetZoom();
+      } else {
+        const targetScale = 2.5;
+        Animated.parallel([
+          Animated.spring(scaleAnim, { toValue: targetScale, useNativeDriver: true }),
+          Animated.spring(translateXAnim, { toValue: 0, useNativeDriver: true }),
+          Animated.spring(translateYAnim, { toValue: 0, useNativeDriver: true }),
+        ]).start();
+        scale.current = targetScale;
+        transX.current = 0;
+        transY.current = 0;
+        onZoomChange?.(true);
+      }
+    } else {
+      lastTapTime.current = now;
+    }
+  }, [resetZoom, scaleAnim, translateXAnim, translateYAnim, onZoomChange]);
+
   return (
     <View
       style={[styles.container, { width, height }]}
+      onTouchEnd={handleTouchEnd}
       {...panResponder.panHandlers}
     >
       <Animated.Image

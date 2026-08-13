@@ -38,14 +38,14 @@ export function usePhotos() {
   const [selectedAlbumId, setSelectedAlbumId] = useState<string | null>(null);
 
   const requestPermission = useCallback(async () => {
-    const { status } = await requestPermissionsAsync(false, ['photo']);
+    const { status } = await requestPermissionsAsync(false, ['photo', 'video']);
     setHasPermission(status === 'granted');
     return status === 'granted';
   }, []);
 
   const loadAlbums = useCallback(async () => {
     try {
-      const result = await getAlbumsAsync({ includeSmartAlbums: false });
+      const result = await getAlbumsAsync({ includeSmartAlbums: true });
       const deviceAlbums: DeviceAlbum[] = [];
 
       for (const album of result) {

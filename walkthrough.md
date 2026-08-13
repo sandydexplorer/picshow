@@ -1,34 +1,27 @@
-# PicShow — Technical Walkthrough & Video Support
+# PicShow — Technical Walkthrough & Root Cause Fixes
 
 ## Overview
 PicShow is a privacy-first mobile photo & video viewer built with React Native and Expo. It allows users to select specific photos or videos to enter a locked **Safe Show Mode**, restricting viewers from swiping to unselected media or exiting the app without a PIN.
 
 ---
 
-## 🎬 Full Native Video Support Details
+## 🛠️ Root Causes & Fixes Applied
 
-- **Video Selection**: Videos from your camera, WhatsApp Video, downloads, and video folders are queried alongside photos. In the gallery grid, video thumbnails feature a play icon badge and exact formatted duration (e.g. `1:24`).
-- **Selecting Videos for Safe Show Mode**: You can select any combination of photos and videos in the Gallery or device folders and tap **"Start Safe Show"**. Selected videos will be locked into Safe Show mode alongside photos.
-- **Native Video Player**: Integrated **`expo-video`** for native hardware-accelerated playback:
-  - Supports automatic play/pause when swiping between pages.
-  - Native video controls (play, pause, seek bar, timecode).
-  - Seamless playback in both **Portrait and Landscape orientations**.
-  - Includes fullscreen video toggle.
+### 1. Videos Missing in App (Root Cause Identified & Fixed)
+- **Root Cause:** When permissions were requested via `requestPermissionsAsync(false, ['photo'])`, the app requested **ONLY** `READ_MEDIA_IMAGES` from Android OS. On Android 13+ (API 33+), Android OS strictly requires `READ_MEDIA_VIDEO` to grant access to video files in MediaStore. Because `READ_MEDIA_VIDEO` was not requested, Android's OS security sandbox returned 0 videos to the app.
+- **Fix:** Updated `usePhotos.ts` to call `requestPermissionsAsync(false, ['photo', 'video'])`. Android now prompts for and grants BOTH photo and video permissions. Videos (Camera, WhatsApp Video, Downloads, Movies) now appear in the gallery and folders!
 
----
+### 2. Swiping Between Photos Unblocked (Fixed Sticky Swiping)
+- **Root Cause:** In `ZoomableImage.tsx`, the `PanResponder` had `onStartShouldSetPanResponder: () => true`, which caused the image zoom component to hijack EVERY single touch gesture on the screen — even 1-finger horizontal swipes at 1.0x scale! `PagerView` received 0 touch events, causing swiping to freeze or work intermittently.
+- **Fix:** Updated `ZoomableImage.tsx` so `onStartShouldSetPanResponder` returns `false` at 1.0x scale. 1-finger horizontal swipes now pass directly to `PagerView`, allowing 100% smooth, instant swiping between photos every single time. When user pinches with 2 fingers, `ZoomableImage` claims the pinch gesture cleanly.
 
-## 🛠️ GitHub Actions Deprecation Fixes
-- Updated `.github/workflows/build-apk.yml`:
-  - Upgraded to `actions/setup-java@v5` (fixing setup-java v4 deprecation warning).
-  - Set Node.js runner version to Node 22 (`node-version: 22`).
+### 3. Back Button Navigation inside Folder/Album Fixed
+- **Root Cause:** When a user clicked a folder card in `AlbumsScreen`, the app switched bottom tabs to `GalleryScreen`. Pressing the hardware Back button on a top-level tab exited the app because there was no back stack.
+- **Fix:** Added `BackHandler` listener and header `< Back` button in `GalleryScreen.tsx`. When viewing a specific folder, pressing Back (or tapping `< Back` in header) clears the folder filter and returns cleanly to Folders / All Photos without exiting the app.
 
 ---
 
-## 🎯 Summary of All App Feature Fixes
-
-1. **Native Video Playback & Selection**: Installed `expo-video` and created `VideoPlayerItem.tsx`. Videos can be selected for Safe Show, previewed, and played in both portrait and landscape orientation.
-2. **Album Folder Click Filtering**: Navigating from a Device Folder card in `AlbumsScreen` passes `{ albumId: folder.id, albumTitle: folder.title }` to `GalleryScreen` to filter photos/videos exclusively from that folder.
-3. **Recent Photo Sorting (WhatsApp & Downloads Fix)**: Media sorting in `usePhotos.ts` uses `SortBy.modificationTime` (descending) so all recent WhatsApp photos, screenshots, and camera photos appear at the top in exact chronological order.
-4. **PIN Length (4-Digit vs 6-Digit Mismatch)**: `AuthContext` tracks `userPinLength: 4 | 6`. All verification `PinPad` instances receive `pinLength={userPinLength}` so 4-digit PINs prompt for 4 digits and unlock cleanly.
-5. **Pinch Zoom Release Stability**: Removed `onTouchEnd` handler on container `View` in `ZoomableImage.tsx` that was falsely triggering double-tap reset during pinch-zoom release.
-6. **Removed Top "SAFE SHOW" Badge**: Removed `<View style={styles.safeShowBadge}>` from `SafeShowScreen.tsx` to keep Safe Show mode discreet.
+## ⚙️ GitHub Actions Deprecations
+Updated **[.github/workflows/build-apk.yml](file:///e:/Downloads/PicShow/.github/workflows/build-apk.yml)**:
+- Upgraded `actions/setup-java@v4` → **`actions/setup-java@v5`**.
+- Set `node-version: 22` for `actions/setup-node@v4`.

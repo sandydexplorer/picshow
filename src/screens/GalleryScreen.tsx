@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  Dimensions, Modal, TextInput, ScrollView, Alert,
+  Dimensions, Modal, TextInput, ScrollView, Alert, BackHandler,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -49,6 +49,19 @@ const GalleryScreen: React.FC = () => {
       selectAlbum(route.params.albumId);
     }
   }, [route.params?.albumId, selectAlbum]);
+
+  // Hardware Back button handling when inside an album filter
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (selectedAlbumId !== null) {
+        selectAlbum(null);
+        navigation.setParams({ albumId: undefined, albumTitle: undefined });
+        return true; // handled
+      }
+      return false;
+    });
+    return () => sub.remove();
+  }, [selectedAlbumId, selectAlbum, navigation]);
 
   // Reload photos when album selection or permission changes
   useEffect(() => {
@@ -115,6 +128,17 @@ const GalleryScreen: React.FC = () => {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
+          {selectedAlbumId !== null && !isSelecting && (
+            <TouchableOpacity
+              style={styles.backBtn}
+              onPress={() => {
+                selectAlbum(null);
+                navigation.setParams({ albumId: undefined, albumTitle: undefined });
+              }}
+            >
+              <Ionicons name="chevron-back" size={22} color={Colors.primary} />
+            </TouchableOpacity>
+          )}
           {/* Album selector button */}
           <TouchableOpacity
             style={styles.albumSelector}
@@ -246,7 +270,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm,
     borderBottomWidth: 1, borderBottomColor: Colors.surfaceBorder,
   },
-  headerLeft: { flex: 1, gap: 2 },
+  headerLeft: { flexDirection: 'row', alignItems: 'center', flex: 1, gap: 6 },
+  backBtn: { paddingRight: 4, paddingVertical: 2 },
   albumSelector: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
   },
