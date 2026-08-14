@@ -55,13 +55,17 @@ const GalleryScreen: React.FC = () => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       if (selectedAlbumId !== null) {
         selectAlbum(null);
-        navigation.setParams({ albumId: undefined, albumTitle: undefined });
+        const fromTab = route.params?.fromTab;
+        navigation.setParams({ albumId: undefined, albumTitle: undefined, fromTab: undefined });
+        if (fromTab === 'Albums') {
+          navigation.navigate('Albums');
+        }
         return true; // handled
       }
       return false;
     });
     return () => sub.remove();
-  }, [selectedAlbumId, selectAlbum, navigation]);
+  }, [selectedAlbumId, selectAlbum, navigation, route.params?.fromTab]);
 
   // Reload photos when album selection or permission changes
   useEffect(() => {
@@ -133,7 +137,11 @@ const GalleryScreen: React.FC = () => {
               style={styles.backBtn}
               onPress={() => {
                 selectAlbum(null);
-                navigation.setParams({ albumId: undefined, albumTitle: undefined });
+                const fromTab = route.params?.fromTab;
+                navigation.setParams({ albumId: undefined, albumTitle: undefined, fromTab: undefined });
+                if (fromTab === 'Albums') {
+                  navigation.navigate('Albums');
+                }
               }}
             >
               <Ionicons name="chevron-back" size={22} color={Colors.primary} />

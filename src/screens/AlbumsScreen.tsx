@@ -38,7 +38,7 @@ const AlbumsScreen: React.FC = () => {
 
   const handleDeviceFolderPress = useCallback((folder: DeviceAlbum) => {
     selectAlbum(folder.id);
-    navigation.navigate('Gallery', { albumId: folder.id, albumTitle: folder.title });
+    navigation.navigate('Gallery', { albumId: folder.id, albumTitle: folder.title, fromTab: 'Albums' });
   }, [selectAlbum, navigation]);
 
   const handleSafeAlbumPress = useCallback(async (album: SafeAlbum) => {

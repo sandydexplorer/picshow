@@ -65,6 +65,14 @@ const PhotoThumbnail: React.FC<Props> = memo(({
       )}
     </TouchableOpacity>
   );
+}, (prevProps, nextProps) => {
+  return (
+    prevProps.photo.id === nextProps.photo.id &&
+    prevProps.isSelected === nextProps.isSelected &&
+    prevProps.isSelecting === nextProps.isSelecting &&
+    prevProps.thumbSize === nextProps.thumbSize &&
+    prevProps.cols === nextProps.cols
+  );
 });
 
 const styles = StyleSheet.create({

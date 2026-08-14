@@ -1,17 +1,16 @@
 import React, { useState, useCallback } from 'react';
 import {
-  View, StyleSheet, Dimensions, Platform, StatusBar, Text, TouchableOpacity,
+  View, StyleSheet, StatusBar, Text, TouchableOpacity,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import PagerView from 'react-native-pager-view';
+import * as Sharing from 'expo-sharing';
 import { Colors, Typography, Spacing } from '../theme';
 import { Photo } from '../hooks/usePhotos';
 import ZoomableImage from '../components/ZoomableImage';
 import VideoPlayerItem from '../components/VideoPlayerItem';
-
-
 
 interface RouteParams {
   photos: Photo[];
@@ -39,6 +38,18 @@ const PhotoViewerScreen: React.FC = () => {
     if (!isZoomed) setShowUI(v => !v);
   }, [isZoomed]);
 
+  const handleShare = useCallback(async () => {
+    if (!current) return;
+    try {
+      const isAvailable = await Sharing.isAvailableAsync();
+      if (isAvailable) {
+        await Sharing.shareAsync(current.uri);
+      }
+    } catch (e) {
+      console.warn('Share error:', e);
+    }
+  }, [current]);
+
   return (
     <View style={styles.container}>
       <StatusBar hidden={!showUI} />
@@ -53,11 +64,13 @@ const PhotoViewerScreen: React.FC = () => {
             <Text style={styles.headerDate}>{dateStr}</Text>
             <Text style={styles.headerCounter}>{currentIndex + 1} / {photos.length}</Text>
           </View>
-          <View style={{ width: 44 }} />
+          <TouchableOpacity onPress={handleShare} style={styles.shareBtn}>
+            <Ionicons name="share-outline" size={22} color={Colors.white} />
+          </TouchableOpacity>
         </View>
       )}
 
-      {/* Pager — scrollEnabled only when not zoomed */}
+      {/* Pager — virtualized window of 3 items (current, prev, next) to prevent crashes */}
       <PagerView
         style={styles.pager}
         initialPage={initialIndex}
@@ -67,23 +80,29 @@ const PhotoViewerScreen: React.FC = () => {
           setIsZoomed(false);
         }}
       >
-        {photos.map((photo, i) => (
-          <View key={photo.id} style={styles.page}>
-            <TouchableOpacity activeOpacity={1} onPress={toggleUI} style={StyleSheet.absoluteFill} />
-            {photo.mediaType === 'video' ? (
-              <VideoPlayerItem
-                uri={photo.uri}
-                isActive={i === currentIndex}
-                onToggleUI={toggleUI}
-              />
-            ) : (
-              <ZoomableImage
-                uri={photo.uri}
-                onZoomChange={setIsZoomed}
-              />
-            )}
-          </View>
-        ))}
+        {photos.map((photo, i) => {
+          const isNearby = Math.abs(i - currentIndex) <= 1;
+          return (
+            <View key={photo.id} style={styles.page}>
+              {isNearby ? (
+                <>
+                  <TouchableOpacity activeOpacity={1} onPress={toggleUI} style={StyleSheet.absoluteFill} />
+                  {photo.mediaType === 'video' ? (
+                    <VideoPlayerItem
+                      uri={photo.uri}
+                      isActive={i === currentIndex}
+                    />
+                  ) : (
+                    <ZoomableImage
+                      uri={photo.uri}
+                      onZoomChange={setIsZoomed}
+                    />
+                  )}
+                </>
+              ) : null}
+            </View>
+          );
+        })}
       </PagerView>
 
       {/* Bottom info */}
@@ -112,6 +131,7 @@ const styles = StyleSheet.create({
     fontWeight: Typography.fontWeightSemiBold,
   },
   headerCounter: { color: Colors.textSecondary, fontSize: Typography.fontSizeXS },
+  shareBtn: { padding: 4, width: 44, alignItems: 'flex-end' },
   pager: { flex: 1 },
   page: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   bottomBar: {

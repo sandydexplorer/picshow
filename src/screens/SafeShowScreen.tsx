@@ -318,33 +318,36 @@ const SafeShowScreen: React.FC = () => {
           setIsZoomed(false);
         }}
       >
-        {photos.map((photo, i) => (
-          <View
-            key={photo.id}
-            style={styles.page}
-          >
-            <TouchableOpacity
-              activeOpacity={1}
-              style={StyleSheet.absoluteFill}
-              onPress={() => { if (!isZoomed) setShowControls(v => !v); }}
-            />
-            {photo.mediaType === 'video' ? (
-              <VideoPlayerItem
-                uri={photo.uri}
-                isActive={i === currentIndex}
-                onToggleUI={() => setShowControls(v => !v)}
-              />
-            ) : (
-              <ZoomableImage
-                uri={photo.uri}
-                onZoomChange={zoomed => {
-                  setIsZoomed(zoomed);
-                  if (zoomed) setShowControls(false);
-                }}
-              />
-            )}
-          </View>
-        ))}
+        {photos.map((photo, i) => {
+          const isNearby = Math.abs(i - currentIndex) <= 1;
+          return (
+            <View key={photo.id} style={styles.page}>
+              {isNearby ? (
+                <>
+                  <TouchableOpacity
+                    activeOpacity={1}
+                    style={StyleSheet.absoluteFill}
+                    onPress={() => { if (!isZoomed) setShowControls(v => !v); }}
+                  />
+                  {photo.mediaType === 'video' ? (
+                    <VideoPlayerItem
+                      uri={photo.uri}
+                      isActive={i === currentIndex}
+                    />
+                  ) : (
+                    <ZoomableImage
+                      uri={photo.uri}
+                      onZoomChange={zoomed => {
+                        setIsZoomed(zoomed);
+                        if (zoomed) setShowControls(false);
+                      }}
+                    />
+                  )}
+                </>
+              ) : null}
+            </View>
+          );
+        })}
       </PagerView>
 
       {/* Top bar */}

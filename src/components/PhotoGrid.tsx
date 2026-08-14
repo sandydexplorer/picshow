@@ -44,6 +44,15 @@ const PhotoGrid: React.FC<Props> = ({
 
   const keyExtractor = useCallback((item: Photo) => item.id, []);
 
+  const getItemLayout = useCallback((_: any, index: number) => {
+    const rowHeight = thumbSize + gap;
+    return {
+      length: rowHeight,
+      offset: rowHeight * Math.floor(index / cols),
+      index,
+    };
+  }, [thumbSize, gap, cols]);
+
   const renderFooter = () => {
     if (!loading) return null;
     return (
@@ -76,9 +85,10 @@ const PhotoGrid: React.FC<Props> = ({
       ListFooterComponent={renderFooter}
       ListEmptyComponent={renderEmpty}
       removeClippedSubviews
-      initialNumToRender={30}
-      maxToRenderPerBatch={30}
-      windowSize={10}
+      initialNumToRender={18}
+      maxToRenderPerBatch={18}
+      windowSize={5}
+      getItemLayout={getItemLayout}
     />
   );
 };

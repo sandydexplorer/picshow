@@ -3,6 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../theme';
 
 import GalleryScreen from '../screens/GalleryScreen';
@@ -16,15 +17,18 @@ import { useAuth } from '../context/AuthContext';
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
-const tabBarStyle = {
-  backgroundColor: Colors.surfaceElevated,
-  borderTopColor: Colors.surfaceBorder,
-  paddingBottom: 8,
-  paddingTop: 8,
-  height: 60,
-};
-
 function MainTabs() {
+  const insets = useSafeAreaInsets();
+  const bottomInset = Math.max(insets.bottom, 12);
+
+  const tabBarStyle = {
+    backgroundColor: Colors.surfaceElevated,
+    borderTopColor: Colors.surfaceBorder,
+    paddingTop: 6,
+    paddingBottom: bottomInset,
+    height: 54 + bottomInset,
+  };
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -33,7 +37,7 @@ function MainTabs() {
         tabBarActiveTintColor: Colors.primary,
         tabBarInactiveTintColor: Colors.textMuted,
         tabBarLabelStyle: { fontSize: 11, marginTop: 2 },
-        tabBarIcon: ({ focused, color, size }) => {
+        tabBarIcon: ({ focused, color }) => {
           const icons: Record<string, string> = {
             Gallery: focused ? 'images' : 'images-outline',
             Albums: focused ? 'bookmark' : 'bookmark-outline',

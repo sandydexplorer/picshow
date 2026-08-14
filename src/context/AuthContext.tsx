@@ -29,7 +29,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const setUpPin = useCallback(async (pin: string) => {
-    const hash = hashPin(pin);
+    const hash = await hashPin(pin);
     const len: 4 | 6 = pin.length === 4 ? 4 : 6;
     await SecureStorage.set(SecureStorage.keys.PIN_HASH, hash);
     await SecureStorage.set(SecureStorage.keys.PIN_LENGTH, len.toString());
@@ -42,7 +42,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const verifyUserPin = useCallback(async (pin: string): Promise<boolean> => {
     const storedHash = await SecureStorage.get(SecureStorage.keys.PIN_HASH);
     if (!storedHash) return false;
-    return verifyPin(pin, storedHash);
+    return await verifyPin(pin, storedHash);
   }, []);
 
   return (
