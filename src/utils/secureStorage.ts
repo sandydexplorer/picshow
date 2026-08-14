@@ -7,6 +7,7 @@ const KEYS = {
   ALBUMS: 'picshow_albums',
   SETTINGS: 'picshow_settings',
   ONBOARDED: 'picshow_onboarded',
+  EXCLUDED_FOLDERS: 'picshow_excluded_folders',
 };
 
 export const SecureStorage = {

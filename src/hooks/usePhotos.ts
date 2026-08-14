@@ -7,6 +7,7 @@ import {
   MediaType,
   SortBy,
 } from 'expo-media-library/legacy';
+import { SecureStorage } from '../utils/secureStorage';
 
 export interface Photo {
   id: string;
@@ -17,6 +18,7 @@ export interface Photo {
   height: number;
   mediaType?: 'photo' | 'video';
   duration?: number;
+  albumId?: string;
 }
 
 export interface DeviceAlbum {
@@ -31,6 +33,7 @@ const PAGE_SIZE = 100;
 export function usePhotos() {
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [albums, setAlbums] = useState<DeviceAlbum[]>([]);
+  const [excludedFolderIds, setExcludedFolderIds] = useState<Set<string>>(new Set());
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(false);
   const [endCursor, setEndCursor] = useState<string | undefined>(undefined);
@@ -43,8 +46,29 @@ export function usePhotos() {
     return status === 'granted';
   }, []);
 
+  const loadExcludedFolders = useCallback(async () => {
+    const raw = await SecureStorage.get(SecureStorage.keys.EXCLUDED_FOLDERS);
+    if (raw) {
+      try {
+        const arr = JSON.parse(raw);
+        setExcludedFolderIds(new Set(arr));
+      } catch {}
+    }
+  }, []);
+
+  const toggleFolderVisibility = useCallback(async (folderId: string) => {
+    setExcludedFolderIds(prev => {
+      const next = new Set(prev);
+      if (next.has(folderId)) next.delete(folderId);
+      else next.add(folderId);
+      SecureStorage.set(SecureStorage.keys.EXCLUDED_FOLDERS, JSON.stringify(Array.from(next)));
+      return next;
+    });
+  }, []);
+
   const loadAlbums = useCallback(async () => {
     try {
+      await loadExcludedFolders();
       const result = await getAlbumsAsync({ includeSmartAlbums: true });
       const deviceAlbums: DeviceAlbum[] = [];
 
@@ -75,7 +99,7 @@ export function usePhotos() {
     } catch (e) {
       console.warn('loadAlbums error:', e);
     }
-  }, []);
+  }, [loadExcludedFolders]);
 
   const loadPhotos = useCallback(async (
     reset = false,
@@ -96,7 +120,15 @@ export function usePhotos() {
 
       const result = await getAssetsAsync(options);
 
-      const newPhotos: Photo[] = result.assets.map(asset => ({
+      // Filter out assets belonging to excluded folders when viewing "All Photos"
+      const filteredAssets = result.assets.filter(asset => {
+        if (!albumId && asset.albumId && excludedFolderIds.has(asset.albumId)) {
+          return false;
+        }
+        return true;
+      });
+
+      const newPhotos: Photo[] = filteredAssets.map(asset => ({
         id: asset.id,
         uri: asset.uri,
         filename: asset.filename,
@@ -105,6 +137,7 @@ export function usePhotos() {
         height: asset.height,
         mediaType: asset.mediaType === 'video' ? 'video' : 'photo',
         duration: asset.duration,
+        albumId: asset.albumId,
       }));
 
       setPhotos(prev => reset ? newPhotos : [...prev, ...newPhotos]);
@@ -115,7 +148,7 @@ export function usePhotos() {
     } finally {
       setLoading(false);
     }
-  }, [loading, hasMore, endCursor, selectedAlbumId]);
+  }, [loading, hasMore, endCursor, selectedAlbumId, excludedFolderIds]);
 
   const selectAlbum = useCallback((albumId: string | null) => {
     setSelectedAlbumId(albumId);
@@ -151,6 +184,7 @@ export function usePhotos() {
   return {
     photos,
     albums,
+    excludedFolderIds,
     hasPermission,
     loading,
     hasMore,
@@ -158,6 +192,8 @@ export function usePhotos() {
     requestPermission,
     loadPhotos,
     loadAlbums,
+    loadExcludedFolders,
+    toggleFolderVisibility,
     selectAlbum,
     getPhotosByIds,
   };

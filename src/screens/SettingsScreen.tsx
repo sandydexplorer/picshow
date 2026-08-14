@@ -1,23 +1,38 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  Switch, Alert, ScrollView, Linking,
+  Switch, Alert, ScrollView, Modal, FlatList, Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, Typography, Spacing, Radius } from '../theme';
 import { useAuth } from '../context/AuthContext';
+import { usePhotos, DeviceAlbum } from '../hooks/usePhotos';
 import PinPad from '../components/PinPad';
 
 const SettingsScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
-  const { verifyUserPin, setUpPin, userPinLength } = useAuth();
+  const { verifyUserPin, setUpPin, userPinLength, hasPinSet } = useAuth();
+  const { albums, loadAlbums, excludedFolderIds, toggleFolderVisibility } = usePhotos();
 
-  const [pinModalMode, setPinModalMode] = useState<'verify_old' | 'set_new' | null>(null);
+  const [pinModalMode, setPinModalMode] = useState<'verify_old' | 'set_new' | 'verify_folders' | null>(null);
+  const [showFolderModal, setShowFolderModal] = useState(false);
   const [screenshotBlock, setScreenshotBlock] = useState(true);
   const [bgLock, setBgLock] = useState(true);
 
+  useEffect(() => {
+    loadAlbums();
+  }, []);
+
   const handleChangePinPress = () => setPinModalMode('verify_old');
+
+  const handleFolderSettingsPress = () => {
+    if (hasPinSet) {
+      setPinModalMode('verify_folders');
+    } else {
+      setShowFolderModal(true);
+    }
+  };
 
   const handlePinSuccess = useCallback(async (pin: string) => {
     if (pinModalMode === 'verify_old') {
@@ -31,6 +46,14 @@ const SettingsScreen: React.FC = () => {
       await setUpPin(pin);
       setPinModalMode(null);
       Alert.alert('PIN Updated', 'Your PIN has been changed successfully.');
+    } else if (pinModalMode === 'verify_folders') {
+      const ok = await verifyUserPin(pin);
+      if (ok) {
+        setPinModalMode(null);
+        setShowFolderModal(true);
+      } else {
+        globalThis.__pinPadWrongPin?.();
+      }
     }
   }, [pinModalMode, verifyUserPin, setUpPin]);
 
@@ -54,6 +77,21 @@ const SettingsScreen: React.FC = () => {
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+
+        {/* FOLDER PRIVACY & VISIBILITY */}
+        <Text style={styles.sectionTitle}>Folder Privacy & Visibility</Text>
+        <View style={styles.section}>
+          <SettingRow
+            icon="folder-open-outline"
+            label="Manage Visible Folders"
+            sub={
+              excludedFolderIds.size > 0
+                ? `${excludedFolderIds.size} folder${excludedFolderIds.size > 1 ? 's' : ''} hidden from All Photos scan`
+                : 'All device folders visible in All Photos'
+            }
+            onPress={handleFolderSettingsPress}
+          />
+        </View>
 
         {/* HOW TO USE */}
         <Text style={styles.sectionTitle}>How to Use</Text>
@@ -138,7 +176,7 @@ const SettingsScreen: React.FC = () => {
           <SettingRow
             icon="information-circle-outline"
             label="App Version"
-            sub="1.0.0 — PicShow"
+            sub="1.1.0 — PicShow"
           />
           <View style={styles.divider} />
           <SettingRow
@@ -167,6 +205,18 @@ const SettingsScreen: React.FC = () => {
           onCancel={() => setPinModalMode(null)}
         />
       )}
+      {/* Verify PIN before managing folders */}
+      {pinModalMode === 'verify_folders' && (
+        <PinPad
+          visible
+          mode="verify"
+          pinLength={userPinLength}
+          title="Enter PIN"
+          subtitle="Verify identity to manage hidden folders"
+          onSuccess={handlePinSuccess}
+          onCancel={() => setPinModalMode(null)}
+        />
+      )}
       {/* Change PIN — step 2: set new PIN */}
       {pinModalMode === 'set_new' && (
         <PinPad
@@ -179,6 +229,66 @@ const SettingsScreen: React.FC = () => {
           onCancel={() => setPinModalMode(null)}
         />
       )}
+
+      {/* Folder Visibility Modal */}
+      <Modal visible={showFolderModal} animationType="slide" transparent>
+        <View style={styles.folderModalOverlay}>
+          <View style={[styles.folderModalCard, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 16 }]}>
+            <View style={styles.folderModalHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.folderModalTitle}>Folder Privacy & Visibility</Text>
+                <Text style={styles.folderModalSub}>
+                  Toggle OFF folders you do not want to see in All Photos.
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowFolderModal(false)} style={styles.closeBtn}>
+                <Ionicons name="close" size={24} color={Colors.textPrimary} />
+              </TouchableOpacity>
+            </View>
+
+            {albums.length === 0 ? (
+              <View style={styles.folderModalEmpty}>
+                <Ionicons name="folder-open-outline" size={48} color={Colors.textMuted} />
+                <Text style={styles.folderModalEmptyText}>No device folders detected</Text>
+              </View>
+            ) : (
+              <FlatList
+                data={albums}
+                keyExtractor={item => item.id}
+                contentContainerStyle={styles.folderList}
+                renderItem={({ item }: { item: DeviceAlbum }) => {
+                  const isVisible = !excludedFolderIds.has(item.id);
+                  return (
+                    <View style={styles.folderRow}>
+                      {item.coverUri ? (
+                        <Image source={{ uri: item.coverUri }} style={styles.folderThumb} resizeMode="cover" />
+                      ) : (
+                        <View style={[styles.folderThumb, styles.folderThumbPlaceholder]}>
+                          <Ionicons name="folder-outline" size={20} color={Colors.textMuted} />
+                        </View>
+                      )}
+                      <View style={styles.folderInfo}>
+                        <Text style={styles.folderTitle} numberOfLines={1}>{item.title}</Text>
+                        <Text style={styles.folderCount}>{item.assetCount} items</Text>
+                      </View>
+                      <Switch
+                        value={isVisible}
+                        onValueChange={() => toggleFolderVisibility(item.id)}
+                        trackColor={{ false: Colors.surfaceBorder, true: Colors.safeGreenDim }}
+                        thumbColor={isVisible ? Colors.safeGreen : Colors.textMuted}
+                      />
+                    </View>
+                  );
+                }}
+              />
+            )}
+
+            <TouchableOpacity style={styles.doneBtn} onPress={() => setShowFolderModal(false)}>
+              <Text style={styles.doneBtnText}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -210,7 +320,7 @@ const styles = StyleSheet.create({
     padding: Spacing.md, gap: Spacing.md,
   },
   rowIcon: {
-    width: 36, height: 36, borderRadius: Radius.sm,
+    width: 36, height: 36, borderRadius: Radius.md,
     justifyContent: 'center', alignItems: 'center',
   },
   rowText: { flex: 1 },
@@ -218,37 +328,73 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary, fontSize: Typography.fontSizeMD,
     fontWeight: Typography.fontWeightMedium,
   },
-  rowSub: { color: Colors.textSecondary, fontSize: Typography.fontSizeXS, marginTop: 2 },
-  divider: {
-    height: 1, backgroundColor: Colors.surfaceBorder,
-    marginLeft: Spacing.md + 36 + Spacing.md,
-  },
-  howToCard: { padding: Spacing.md, gap: Spacing.md },
-  howToRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm },
+  rowSub: { color: Colors.textMuted, fontSize: Typography.fontSizeXS, marginTop: 2 },
+  divider: { height: 1, backgroundColor: Colors.surfaceBorder, marginLeft: 64 },
+
+  howToCard: { padding: Spacing.md, gap: Spacing.sm },
+  howToRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   stepBadge: {
-    width: 22, height: 22, borderRadius: 11,
+    width: 20, height: 20, borderRadius: 10,
     backgroundColor: Colors.primary, justifyContent: 'center', alignItems: 'center',
-    flexShrink: 0, marginTop: 1,
   },
-  stepNum: { color: Colors.white, fontSize: 11, fontWeight: Typography.fontWeightBold },
-  stepIconWrap: { flexShrink: 0, marginTop: 1 },
-  howToText: {
-    color: Colors.textSecondary, fontSize: Typography.fontSizeSM,
-    lineHeight: 20, flex: 1,
-  },
+  stepNum: { color: Colors.white, fontSize: 11, fontWeight: '700' },
+  stepIconWrap: { width: 24, alignItems: 'center' },
+  howToText: { flex: 1, color: Colors.textSecondary, fontSize: Typography.fontSizeXS, lineHeight: 18 },
+
   tipCard: {
-    flexDirection: 'row', gap: Spacing.sm, alignItems: 'flex-start',
-    backgroundColor: Colors.safeGreenGlow,
-    borderTopWidth: 1, borderTopColor: Colors.safeGreenDim,
-    padding: Spacing.md,
+    flexDirection: 'row', padding: Spacing.md,
+    gap: Spacing.sm, backgroundColor: Colors.safeGreenGlow,
   },
-  tipTitle: {
-    color: Colors.safeGreen, fontSize: Typography.fontSizeSM,
-    fontWeight: Typography.fontWeightSemiBold, marginBottom: 3,
+  tipTitle: { color: Colors.safeGreen, fontSize: Typography.fontSizeXS, fontWeight: '700' },
+  tipText: { color: Colors.textSecondary, fontSize: Typography.fontSizeXS, marginTop: 2, lineHeight: 16 },
+
+  footer: { alignItems: 'center', marginTop: Spacing.xl, gap: Spacing.xs },
+  footerText: { color: Colors.textMuted, fontSize: Typography.fontSizeXS, textAlign: 'center' },
+
+  folderModalOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.85)',
+    justifyContent: 'flex-end',
   },
-  tipText: { color: Colors.textSecondary, fontSize: Typography.fontSizeXS, lineHeight: 18 },
-  footer: { alignItems: 'center', gap: Spacing.sm, marginTop: Spacing.xl, opacity: 0.5 },
-  footerText: { color: Colors.textSecondary, fontSize: Typography.fontSizeXS, textAlign: 'center' },
+  folderModalCard: {
+    backgroundColor: Colors.surfaceElevated,
+    borderTopLeftRadius: Radius.xl, borderTopRightRadius: Radius.xl,
+    paddingHorizontal: Spacing.lg, maxHeight: '85%',
+    borderTopWidth: 1, borderColor: Colors.surfaceBorder,
+  },
+  folderModalHeader: {
+    flexDirection: 'row', alignItems: 'center',
+    marginBottom: Spacing.md, paddingBottom: Spacing.sm,
+    borderBottomWidth: 1, borderBottomColor: Colors.surfaceBorder,
+  },
+  folderModalTitle: {
+    color: Colors.textPrimary, fontSize: Typography.fontSizeLG,
+    fontWeight: Typography.fontWeightBold,
+  },
+  folderModalSub: {
+    color: Colors.textMuted, fontSize: Typography.fontSizeXS, marginTop: 2,
+  },
+  closeBtn: { padding: 4 },
+  folderList: { paddingVertical: Spacing.xs, gap: Spacing.sm },
+  folderRow: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
+    paddingVertical: 8, paddingHorizontal: 4,
+    borderBottomWidth: 1, borderBottomColor: Colors.surfaceBorder,
+  },
+  folderThumb: { width: 44, height: 44, borderRadius: Radius.md },
+  folderThumbPlaceholder: {
+    backgroundColor: Colors.surface,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  folderInfo: { flex: 1 },
+  folderTitle: { color: Colors.textPrimary, fontSize: Typography.fontSizeMD, fontWeight: Typography.fontWeightMedium },
+  folderCount: { color: Colors.textMuted, fontSize: Typography.fontSizeXS, marginTop: 2 },
+  folderModalEmpty: { padding: Spacing.xl, alignItems: 'center', gap: Spacing.sm },
+  folderModalEmptyText: { color: Colors.textMuted, fontSize: Typography.fontSizeSM },
+  doneBtn: {
+    backgroundColor: Colors.primary, paddingVertical: Spacing.md,
+    borderRadius: Radius.lg, alignItems: 'center', marginTop: Spacing.md,
+  },
+  doneBtnText: { color: Colors.white, fontWeight: Typography.fontWeightBold, fontSize: Typography.fontSizeMD },
 });
 
 export default SettingsScreen;

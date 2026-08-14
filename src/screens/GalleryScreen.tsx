@@ -21,7 +21,7 @@ const GalleryScreen: React.FC = () => {
   const {
     photos, loading, hasMore, albums,
     hasPermission, requestPermission, loadPhotos, loadAlbums,
-    selectedAlbumId, selectAlbum,
+    selectedAlbumId, selectAlbum, excludedFolderIds, loadExcludedFolders,
   } = usePhotos();
 
   const {
@@ -38,6 +38,7 @@ const GalleryScreen: React.FC = () => {
     (async () => {
       const granted = await requestPermission();
       if (granted) {
+        await loadExcludedFolders();
         loadAlbums();
       }
     })();
@@ -67,12 +68,12 @@ const GalleryScreen: React.FC = () => {
     return () => sub.remove();
   }, [selectedAlbumId, selectAlbum, navigation, route.params?.fromTab]);
 
-  // Reload photos when album selection or permission changes
+  // Reload photos when album selection, folder exclusions, or permission changes
   useEffect(() => {
     if (hasPermission) {
       loadPhotos(true, selectedAlbumId);
     }
-  }, [selectedAlbumId, hasPermission]);
+  }, [selectedAlbumId, hasPermission, excludedFolderIds]);
 
   const handlePhotoPress = useCallback((photo: Photo, index: number) => {
     if (isSelecting) {
