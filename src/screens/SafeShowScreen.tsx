@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
   Dimensions, Platform, BackHandler, AppState, StatusBar,
-  Modal,
+  Modal, Image,
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
@@ -320,6 +320,7 @@ const SafeShowScreen: React.FC = () => {
       >
         {photos.map((photo, i) => {
           const isNearby = Math.abs(i - currentIndex) <= 1;
+          const isActive = i === currentIndex;
           return (
             <View key={photo.id} style={styles.page}>
               {isNearby ? (
@@ -330,10 +331,20 @@ const SafeShowScreen: React.FC = () => {
                     onPress={() => { if (!isZoomed) setShowControls(v => !v); }}
                   />
                   {photo.mediaType === 'video' ? (
-                    <VideoPlayerItem
-                      uri={photo.uri}
-                      isActive={i === currentIndex}
-                    />
+                    isActive ? (
+                      <VideoPlayerItem
+                        uri={photo.uri}
+                        isActive={true}
+                        onToggleUI={() => setShowControls(v => !v)}
+                      />
+                    ) : (
+                      <View style={styles.videoPreviewWrap}>
+                        <Image source={{ uri: photo.uri }} style={styles.previewImage} resizeMode="contain" />
+                        <View style={styles.playBadge}>
+                          <Ionicons name="play" size={32} color={Colors.white} style={{ marginLeft: 2 }} />
+                        </View>
+                      </View>
+                    )
                   ) : (
                     <ZoomableImage
                       uri={photo.uri}
@@ -404,6 +415,13 @@ const styles = StyleSheet.create({
   pager: { flex: 1 },
   page: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   photo: { width: '100%', height: '100%' },
+  videoPreviewWrap: { flex: 1, width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center', backgroundColor: '#000' },
+  previewImage: { width: '100%', height: '100%' },
+  playBadge: {
+    position: 'absolute', width: 56, height: 56, borderRadius: 28,
+    backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center',
+    borderWidth: 2, borderColor: Colors.white,
+  },
   topBar: {
     position: 'absolute', top: 0, left: 0, right: 0,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',

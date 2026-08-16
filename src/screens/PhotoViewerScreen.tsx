@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import {
-  View, StyleSheet, StatusBar, Text, TouchableOpacity,
+  View, StyleSheet, StatusBar, Text, TouchableOpacity, Image, useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -21,6 +21,7 @@ const PhotoViewerScreen: React.FC = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const insets = useSafeAreaInsets();
+  const { width, height } = useWindowDimensions();
   const { photos, initialIndex } = route.params as RouteParams;
 
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
@@ -70,7 +71,7 @@ const PhotoViewerScreen: React.FC = () => {
         </View>
       )}
 
-      {/* Pager — virtualized window of 3 items (current, prev, next) to prevent crashes */}
+      {/* Pager — virtualized 3-page windowing with single active VideoPlayer instance */}
       <PagerView
         style={styles.pager}
         initialPage={initialIndex}
@@ -82,16 +83,27 @@ const PhotoViewerScreen: React.FC = () => {
       >
         {photos.map((photo, i) => {
           const isNearby = Math.abs(i - currentIndex) <= 1;
+          const isActive = i === currentIndex;
           return (
             <View key={photo.id} style={styles.page}>
               {isNearby ? (
                 <>
                   <TouchableOpacity activeOpacity={1} onPress={toggleUI} style={StyleSheet.absoluteFill} />
                   {photo.mediaType === 'video' ? (
-                    <VideoPlayerItem
-                      uri={photo.uri}
-                      isActive={i === currentIndex}
-                    />
+                    isActive ? (
+                      <VideoPlayerItem
+                        uri={photo.uri}
+                        isActive={true}
+                        onToggleUI={toggleUI}
+                      />
+                    ) : (
+                      <View style={[styles.videoPreviewWrap, { width, height }]}>
+                        <Image source={{ uri: photo.uri }} style={[styles.image, { width, height }]} resizeMode="contain" />
+                        <View style={styles.playBadge}>
+                          <Ionicons name="play" size={32} color={Colors.white} style={{ marginLeft: 2 }} />
+                        </View>
+                      </View>
+                    )
                   ) : (
                     <ZoomableImage
                       uri={photo.uri}
@@ -134,6 +146,13 @@ const styles = StyleSheet.create({
   shareBtn: { padding: 4, width: 44, alignItems: 'flex-end' },
   pager: { flex: 1 },
   page: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  videoPreviewWrap: { justifyContent: 'center', alignItems: 'center', backgroundColor: '#000' },
+  image: {},
+  playBadge: {
+    position: 'absolute', width: 56, height: 56, borderRadius: 28,
+    backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center',
+    borderWidth: 2, borderColor: Colors.white,
+  },
   bottomBar: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     backgroundColor: 'rgba(0,0,0,0.5)',

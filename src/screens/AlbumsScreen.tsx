@@ -23,14 +23,16 @@ const AlbumsScreen: React.FC = () => {
   const cardWidth = (width - Spacing.md * (numColumns + 1)) / numColumns;
 
   const { albums: safeAlbums, loadAlbums: loadSafeAlbums, deleteAlbum, activateSafeShow } = useSafeShow();
-  const { albums: deviceAlbums, loadAlbums: loadDeviceAlbums, selectAlbum, photos, getPhotosByIds } = usePhotos();
+  const { albums: deviceAlbums, loadAlbums: loadDeviceAlbums, selectAlbum, photos, getPhotosByIds, excludedFolderIds, loadExcludedFolders } = usePhotos();
   const [refreshing, setRefreshing] = useState(false);
+
+  const visibleDeviceAlbums = deviceAlbums.filter(album => !excludedFolderIds.has(album.id));
 
   const initData = useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([loadSafeAlbums(), loadDeviceAlbums()]);
+    await Promise.all([loadSafeAlbums(), loadDeviceAlbums(), loadExcludedFolders()]);
     setRefreshing(false);
-  }, [loadSafeAlbums, loadDeviceAlbums]);
+  }, [loadSafeAlbums, loadDeviceAlbums, loadExcludedFolders]);
 
   useEffect(() => {
     initData();
@@ -123,7 +125,7 @@ const AlbumsScreen: React.FC = () => {
             color={activeTab === 'device' ? Colors.primary : Colors.textMuted}
           />
           <Text style={[styles.tabText, activeTab === 'device' && styles.tabTextActive]}>
-            Device Folders ({deviceAlbums.length})
+            Device Folders ({visibleDeviceAlbums.length})
           </Text>
         </TouchableOpacity>
 
@@ -144,21 +146,21 @@ const AlbumsScreen: React.FC = () => {
 
       {/* Content */}
       {activeTab === 'device' ? (
-        deviceAlbums.length === 0 ? (
+        visibleDeviceAlbums.length === 0 ? (
           <ScrollView
             contentContainerStyle={styles.empty}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={initData} tintColor={Colors.primary} />}
           >
             <Ionicons name="folder-open-outline" size={64} color={Colors.textMuted} />
-            <Text style={styles.emptyTitle}>Scanning folders...</Text>
+            <Text style={styles.emptyTitle}>No folders visible</Text>
             <Text style={styles.emptySub}>
-              Make sure media permissions are granted to view your device folders.
+              All device folders are currently hidden or unselected in Settings → Folder Privacy & Visibility.
             </Text>
           </ScrollView>
         ) : (
           <FlatList
             key={`dev-folders-${numColumns}`}
-            data={deviceAlbums}
+            data={visibleDeviceAlbums}
             renderItem={renderDeviceFolder}
             keyExtractor={item => item.id}
             numColumns={numColumns}

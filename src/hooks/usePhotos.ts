@@ -109,26 +109,61 @@ export function usePhotos() {
     setLoading(true);
     const cursor = reset ? undefined : endCursor;
     try {
-      const options: any = {
-        first: PAGE_SIZE,
-        mediaType: [MediaType.photo, MediaType.video],
-        // Sort by modificationTime descending so WhatsApp & downloaded photos with missing EXIF creationTime sort newest-first
-        sortBy: [[SortBy.modificationTime, false]],
-      };
-      if (cursor) options.after = cursor;
-      if (albumId) options.album = albumId;
+      let fetchedAssets: any[] = [];
+      let nextHasMore = false;
+      let nextCursor: string | undefined = undefined;
 
-      const result = await getAssetsAsync(options);
-
-      // Filter out assets belonging to excluded folders when viewing "All Photos"
-      const filteredAssets = result.assets.filter(asset => {
-        if (!albumId && asset.albumId && excludedFolderIds.has(asset.albumId)) {
-          return false;
+      if (!albumId && excludedFolderIds.size > 0) {
+        // Excluded folders active: fetch assets ONLY from allowed device folders
+        let currentAlbums = albums;
+        if (currentAlbums.length === 0) {
+          const rawAlbums = await getAlbumsAsync({ includeSmartAlbums: true });
+          currentAlbums = rawAlbums.map(a => ({ id: a.id, title: a.title, assetCount: a.assetCount ?? 0 }));
         }
-        return true;
-      });
 
-      const newPhotos: Photo[] = filteredAssets.map(asset => ({
+        const allowedAlbums = currentAlbums.filter(a => !excludedFolderIds.has(a.id));
+
+        const responses = await Promise.all(
+          allowedAlbums.map(alb =>
+            getAssetsAsync({
+              album: alb.id,
+              first: 50,
+              mediaType: [MediaType.photo, MediaType.video],
+              sortBy: [[SortBy.modificationTime, false]],
+            }).catch(() => ({ assets: [], hasNextPage: false, endCursor: undefined }))
+          )
+        );
+
+        const assetMap = new Map<string, any>();
+        for (const resp of responses) {
+          if (resp && resp.assets) {
+            for (const item of resp.assets) {
+              assetMap.set(item.id, item);
+            }
+          }
+        }
+
+        fetchedAssets = Array.from(assetMap.values());
+        // Sort merged assets by modificationTime descending
+        fetchedAssets.sort((a, b) => (b.modificationTime || b.creationTime || 0) - (a.modificationTime || a.creationTime || 0));
+        nextHasMore = false;
+      } else {
+        // Standard query (specific album or no exclusions)
+        const options: any = {
+          first: PAGE_SIZE,
+          mediaType: [MediaType.photo, MediaType.video],
+          sortBy: [[SortBy.modificationTime, false]],
+        };
+        if (cursor) options.after = cursor;
+        if (albumId) options.album = albumId;
+
+        const result = await getAssetsAsync(options);
+        fetchedAssets = result.assets;
+        nextHasMore = result.hasNextPage;
+        nextCursor = result.endCursor;
+      }
+
+      const newPhotos: Photo[] = fetchedAssets.map(asset => ({
         id: asset.id,
         uri: asset.uri,
         filename: asset.filename,
@@ -141,14 +176,14 @@ export function usePhotos() {
       }));
 
       setPhotos(prev => reset ? newPhotos : [...prev, ...newPhotos]);
-      setEndCursor(result.endCursor);
-      setHasMore(result.hasNextPage);
+      setEndCursor(nextCursor);
+      setHasMore(nextHasMore);
     } catch (e) {
       console.error('loadPhotos error:', e);
     } finally {
       setLoading(false);
     }
-  }, [loading, hasMore, endCursor, selectedAlbumId, excludedFolderIds]);
+  }, [loading, hasMore, endCursor, selectedAlbumId, excludedFolderIds, albums]);
 
   const selectAlbum = useCallback((albumId: string | null) => {
     setSelectedAlbumId(albumId);
