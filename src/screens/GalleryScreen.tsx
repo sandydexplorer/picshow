@@ -194,7 +194,7 @@ const GalleryScreen: React.FC = () => {
                 All Photos
               </Text>
             </TouchableOpacity>
-            {albums.map(album => (
+            {albums.filter(a => !excludedFolderIds.has(a.id)).map(album => (
               <TouchableOpacity
                 key={album.id}
                 style={[styles.albumChip, selectedAlbumId === album.id && styles.albumChipActive]}

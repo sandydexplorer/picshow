@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
+import { PhotosProvider } from './src/context/PhotosContext';
 import { SafeShowProvider } from './src/context/SafeShowContext';
 import AppNavigator from './src/navigation/AppNavigator';
 
@@ -16,9 +17,11 @@ export default function App() {
     <View style={styles.root}>
       <SafeAreaProvider>
         <AuthProvider>
-          <SafeShowProvider>
-            <RootApp />
-          </SafeShowProvider>
+          <PhotosProvider>
+            <SafeShowProvider>
+              <RootApp />
+            </SafeShowProvider>
+          </PhotosProvider>
         </AuthProvider>
       </SafeAreaProvider>
     </View>

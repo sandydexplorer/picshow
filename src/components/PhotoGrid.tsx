@@ -44,15 +44,6 @@ const PhotoGrid: React.FC<Props> = ({
 
   const keyExtractor = useCallback((item: Photo) => item.id, []);
 
-  const getItemLayout = useCallback((_: any, index: number) => {
-    const rowHeight = thumbSize + gap;
-    return {
-      length: rowHeight,
-      offset: rowHeight * Math.floor(index / cols),
-      index,
-    };
-  }, [thumbSize, gap, cols]);
-
   const renderFooter = () => {
     if (!loading) return null;
     return (
@@ -73,7 +64,7 @@ const PhotoGrid: React.FC<Props> = ({
 
   return (
     <FlatList
-      key={`grid-${cols}`} // Remount on orientation/column changes
+      key={`grid-${cols}`}
       data={photos}
       renderItem={renderItem}
       keyExtractor={keyExtractor}
@@ -85,10 +76,9 @@ const PhotoGrid: React.FC<Props> = ({
       ListFooterComponent={renderFooter}
       ListEmptyComponent={renderEmpty}
       removeClippedSubviews
-      initialNumToRender={18}
-      maxToRenderPerBatch={18}
-      windowSize={5}
-      getItemLayout={getItemLayout}
+      initialNumToRender={24}
+      maxToRenderPerBatch={24}
+      windowSize={7}
     />
   );
 };
