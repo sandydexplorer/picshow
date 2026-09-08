@@ -10,6 +10,7 @@ import GalleryScreen from '../screens/GalleryScreen';
 import AlbumsScreen from '../screens/AlbumsScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import PhotoViewerScreen from '../screens/PhotoViewerScreen';
+import AlbumDetailScreen from '../screens/AlbumDetailScreen';
 import SafeShowScreen from '../screens/SafeShowScreen';
 import OnboardingScreen from '../screens/OnboardingScreen';
 import { useAuth } from '../context/AuthContext';
@@ -65,6 +66,7 @@ export default function AppNavigator() {
         ) : (
           <>
             <Stack.Screen name="Main" component={MainTabs} />
+            <Stack.Screen name="AlbumDetail" component={AlbumDetailScreen} options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="PhotoViewer" component={PhotoViewerScreen} options={{ animation: 'fade' }} />
             <Stack.Screen
               name="SafeShow"

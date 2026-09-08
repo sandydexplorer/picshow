@@ -23,7 +23,7 @@ const AlbumsScreen: React.FC = () => {
   const cardWidth = (width - Spacing.md * (numColumns + 1)) / numColumns;
 
   const { albums: safeAlbums, loadAlbums: loadSafeAlbums, deleteAlbum, activateSafeShow } = useSafeShow();
-  const { albums: deviceAlbums, loadAlbums: loadDeviceAlbums, selectAlbum, photos, getPhotosByIds, excludedFolderIds, loadExcludedFolders } = usePhotos();
+  const { albums: deviceAlbums, loadAlbums: loadDeviceAlbums, getPhotosByIds, excludedFolderIds, loadExcludedFolders } = usePhotos();
   const [refreshing, setRefreshing] = useState(false);
 
   const visibleDeviceAlbums = deviceAlbums.filter(album => !excludedFolderIds.has(album.id));
@@ -39,9 +39,8 @@ const AlbumsScreen: React.FC = () => {
   }, []);
 
   const handleDeviceFolderPress = useCallback((folder: DeviceAlbum) => {
-    selectAlbum(folder.id);
-    navigation.navigate('Gallery', { albumId: folder.id, albumTitle: folder.title, fromTab: 'Albums' });
-  }, [selectAlbum, navigation]);
+    navigation.navigate('AlbumDetail', { albumId: folder.id, albumTitle: folder.title });
+  }, [navigation]);
 
   const handleSafeAlbumPress = useCallback(async (album: SafeAlbum) => {
     Alert.alert(

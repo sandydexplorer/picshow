@@ -28,6 +28,12 @@ export interface DeviceAlbum {
   coverUri?: string;
 }
 
+interface AlbumPhotosResult {
+  photos: Photo[];
+  hasMore: boolean;
+  endCursor?: string;
+}
+
 interface PhotosContextType {
   photos: Photo[];
   albums: DeviceAlbum[];
@@ -43,6 +49,7 @@ interface PhotosContextType {
   toggleFolderVisibility: (folderId: string) => Promise<void>;
   selectAlbum: (albumId: string | null) => void;
   getPhotosByIds: (ids: string[]) => Promise<Photo[]>;
+  loadPhotosForAlbum: (albumId: string, pageSize?: number, cursor?: string) => Promise<AlbumPhotosResult>;
 }
 
 const PhotosContext = createContext<PhotosContextType | undefined>(undefined);
@@ -133,40 +140,59 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       let nextCursor: string | undefined = undefined;
 
       if (!albumId && excludedFolderIds.size > 0) {
-        // Excluded folders active: fetch assets ONLY from allowed device folders
+        // Excluded folders active: fetch ALL assets with standard pagination,
+        // then filter out excluded folder items client-side.
+        const options: any = {
+          first: PAGE_SIZE,
+          mediaType: [MediaType.photo, MediaType.video],
+          sortBy: [[SortBy.modificationTime, false]],
+        };
+        if (cursor) options.after = cursor;
+
+        // We need to know which album each asset belongs to.
+        // Fetch a larger batch to ensure we get enough after filtering.
+        const batchSize = PAGE_SIZE * 3;
+        options.first = batchSize;
+
+        // Build a set of asset IDs that belong to excluded folders
         let currentAlbums = albums;
         if (currentAlbums.length === 0) {
           const rawAlbums = await getAlbumsAsync({ includeSmartAlbums: true });
           currentAlbums = rawAlbums.map(a => ({ id: a.id, title: a.title, assetCount: a.assetCount ?? 0 }));
         }
 
-        const allowedAlbums = currentAlbums.filter(a => !excludedFolderIds.has(a.id));
+        const excludedAssetIds = new Set<string>();
+        const excludedAlbumsList = currentAlbums.filter(a => excludedFolderIds.has(a.id));
 
-        const responses = await Promise.all(
-          allowedAlbums.map(alb =>
-            getAssetsAsync({
-              album: alb.id,
-              first: 50,
-              mediaType: [MediaType.photo, MediaType.video],
-              sortBy: [[SortBy.modificationTime, false]],
-            }).catch(() => ({ assets: [], hasNextPage: false, endCursor: undefined }))
-          )
+        // Fetch all asset IDs from excluded folders (in parallel, small batches)
+        await Promise.all(
+          excludedAlbumsList.map(async (alb) => {
+            try {
+              let exCursor: string | undefined;
+              let exHasMore = true;
+              while (exHasMore) {
+                const exOpts: any = {
+                  album: alb.id,
+                  first: 500,
+                  mediaType: [MediaType.photo, MediaType.video],
+                };
+                if (exCursor) exOpts.after = exCursor;
+                const exResult = await getAssetsAsync(exOpts);
+                for (const a of exResult.assets) excludedAssetIds.add(a.id);
+                exHasMore = exResult.hasNextPage;
+                exCursor = exResult.endCursor;
+              }
+            } catch {}
+          })
         );
 
-        const assetMap = new Map<string, any>();
-        for (const resp of responses) {
-          if (resp && resp.assets) {
-            for (const item of resp.assets) {
-              assetMap.set(item.id, item);
-            }
-          }
-        }
-
-        fetchedAssets = Array.from(assetMap.values());
-        fetchedAssets.sort((a, b) => (b.modificationTime || b.creationTime || 0) - (a.modificationTime || a.creationTime || 0));
-        nextHasMore = false;
+        // Now paginate through ALL assets, filtering out excluded ones
+        const result = await getAssetsAsync(options);
+        fetchedAssets = result.assets.filter(a => !excludedAssetIds.has(a.id));
+        nextHasMore = result.hasNextPage;
+        nextCursor = result.endCursor;
       } else {
-        // Standard query
+        // Standard query (no exclusions or specific album selected)
         const options: any = {
           first: PAGE_SIZE,
           mediaType: [MediaType.photo, MediaType.video],
@@ -208,6 +234,40 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setPhotos([]);
     setEndCursor(undefined);
     setHasMore(true);
+  }, []);
+
+  // Standalone album photo fetcher for AlbumDetailScreen (doesn't touch global photos state)
+  const loadPhotosForAlbum = useCallback(async (
+    albumId: string,
+    pageSize = 100,
+    cursor?: string,
+  ): Promise<AlbumPhotosResult> => {
+    try {
+      const options: any = {
+        album: albumId,
+        first: pageSize,
+        mediaType: [MediaType.photo, MediaType.video],
+        sortBy: [[SortBy.modificationTime, false]],
+      };
+      if (cursor) options.after = cursor;
+
+      const result = await getAssetsAsync(options);
+      const photos: Photo[] = result.assets.map(asset => ({
+        id: asset.id,
+        uri: asset.uri,
+        filename: asset.filename,
+        creationTime: asset.creationTime,
+        width: asset.width,
+        height: asset.height,
+        mediaType: asset.mediaType === 'video' ? 'video' : 'photo',
+        duration: asset.duration,
+        albumId: asset.albumId,
+      }));
+      return { photos, hasMore: result.hasNextPage, endCursor: result.endCursor };
+    } catch (e) {
+      console.warn('loadPhotosForAlbum error:', e);
+      return { photos: [], hasMore: false };
+    }
   }, []);
 
   const getPhotosByIds = useCallback(async (ids: string[]): Promise<Photo[]> => {
@@ -254,6 +314,7 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       toggleFolderVisibility,
       selectAlbum,
       getPhotosByIds,
+      loadPhotosForAlbum,
     }}>
       {children}
     </PhotosContext.Provider>

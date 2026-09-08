@@ -44,7 +44,7 @@ const GalleryScreen: React.FC = () => {
     })();
   }, []);
 
-  // Sync selected album from navigation parameters (e.g. when coming from AlbumsScreen)
+  // Sync selected album from navigation parameters (e.g. album filter dropdown)
   useEffect(() => {
     if (route.params?.albumId !== undefined) {
       selectAlbum(route.params.albumId);
@@ -56,17 +56,13 @@ const GalleryScreen: React.FC = () => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       if (selectedAlbumId !== null) {
         selectAlbum(null);
-        const fromTab = route.params?.fromTab;
-        navigation.setParams({ albumId: undefined, albumTitle: undefined, fromTab: undefined });
-        if (fromTab === 'Albums') {
-          navigation.navigate('Albums');
-        }
+        navigation.setParams({ albumId: undefined, albumTitle: undefined });
         return true; // handled
       }
       return false;
     });
     return () => sub.remove();
-  }, [selectedAlbumId, selectAlbum, navigation, route.params?.fromTab]);
+  }, [selectedAlbumId, selectAlbum, navigation]);
 
   // Reload photos when album selection, folder exclusions, or permission changes
   useEffect(() => {
@@ -138,11 +134,7 @@ const GalleryScreen: React.FC = () => {
               style={styles.backBtn}
               onPress={() => {
                 selectAlbum(null);
-                const fromTab = route.params?.fromTab;
-                navigation.setParams({ albumId: undefined, albumTitle: undefined, fromTab: undefined });
-                if (fromTab === 'Albums') {
-                  navigation.navigate('Albums');
-                }
+                navigation.setParams({ albumId: undefined, albumTitle: undefined });
               }}
             >
               <Ionicons name="chevron-back" size={22} color={Colors.primary} />
